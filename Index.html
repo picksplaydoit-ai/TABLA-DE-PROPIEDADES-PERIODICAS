@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tabla Periódica Interactiva - Propiedades Periódicas</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712; /* Gray 950 extra oscuro para máximo contraste */
+      color: #f9fafb;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Estructura de la Tabla Periódica (18 columnas x 7 filas principales) */
+    .periodic-table-grid {
+      display: grid;
+      grid-template-columns: repeat(18, minmax(0, 1fr));
+      gap: 3px;
+    }
+    @media (min-width: 1280px) {
+      .periodic-table-grid {
+        gap: 4px;
+      }
+    }
+
+    /* MODO PRESENTACIÓN / PANTALLA COMPLETA */
+    body.presentation-mode {
+      overflow: hidden;
+    }
+    body.presentation-mode header,
+    body.presentation-mode #propertySelectorSection,
+    body.presentation-mode #bottomSection {
+      display: none !important;
+    }
+    body.presentation-mode #presentationFloatingBar {
+      display: flex !important;
+    }
+    body.presentation-mode #tableContainer {
+      height: 100vh !important;
+      padding: 0.75rem !important;
+      border: none !important;
+      border-radius: 0 !important;
+    }
+    body.presentation-mode .periodic-table-grid {
+      gap: 5px;
+    }
+    body.presentation-mode .element-symbol {
+      font-size: clamp(1rem, 2.2vh, 1.8rem) !important;
+    }
+    body.presentation-mode .element-z {
+      font-size: clamp(0.65rem, 1.3vh, 0.9rem) !important;
+    }
+    body.presentation-mode .element-val {
+      font-size: clamp(0.65rem, 1.3vh, 0.85rem) !important;
+    }
+
+    /* Animaciones y contraste en tarjetas */
+    .element-card {
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      position: relative;
+    }
+    .element-card:hover {
+      transform: translateY(-2px) scale(1.15);
+      z-index: 40;
+      box-shadow: 0 12px 24px -2px rgba(0, 0, 0, 0.95), 0 0 16px rgba(56, 189, 248, 0.85);
+    }
+    .element-card.selected-el {
+      box-shadow: 0 0 0 2px #38bdf8, 0 0 18px #0284c7;
+      transform: scale(1.05);
+      z-index: 30;
+    }
+    .element-card.bonded-atom-1 {
+      box-shadow: 0 0 0 2px #22d3ee, 0 0 20px rgba(34, 211, 238, 0.9);
+      animation: pulse-ring 2s infinite;
+      z-index: 35;
+    }
+    .element-card.bonded-atom-2 {
+      box-shadow: 0 0 0 2px #a855f7, 0 0 20px rgba(168, 85, 247, 0.9);
+      animation: pulse-ring 2s infinite;
+      z-index: 35;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { transform: scale(1.03); }
+      50% { transform: scale(1.08); }
+    }
+    /* Scrollbar de alto contraste vertical y horizontal */
+    ::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #030712;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0284c7;
+    }
+
+    /* Indicadores y vectores de aumento (+) */
+    .trend-vector-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 0.5rem;
+      font-weight: 800;
+      font-size: 0.75rem;
+      letter-spacing: 0.025em;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col antialiased selection:bg-cyan-400 selection:text-black bg-[#030712]">
+
+  <!-- BARRA FLOTANTE DE PRESENTACIÓN (SOLO VISIBLE EN MODO PRESENTACIÓN) -->
+  <div id="presentationFloatingBar" class="hidden fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-gray-950/90 border border-cyan-500/50 backdrop-blur-md px-4 py-1.5 rounded-full shadow-2xl items-center gap-3">
+    <span class="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+      Modo Presentación
+    </span>
+    <span id="presPropBadge" class="text-xs bg-gray-900 border border-gray-700 px-2 py-0.5 rounded text-white font-mono font-bold">Electronegatividad</span>
+    <button onclick="toggleTrends()" class="px-2.5 py-1 text-[11px] font-bold bg-gray-900 hover:bg-gray-800 rounded-lg text-cyan-300 border border-gray-700">Tendencias</button>
+    <button onclick="togglePresentationMode()" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-lg">Salir (Esc)</button>
+  </div>
+
+  <!-- MODAL / APOYO FLOTANTE PARA MODO PRESENTACIÓN AL ENLAZAR ÁTOMOS -->
+  <div id="presentationBondFloater" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-xl w-[92%] sm:w-auto bg-gray-950/95 border-2 border-cyan-400/80 backdrop-blur-xl p-4 sm:p-5 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-bottom-5 duration-200">
+    <div class="flex items-start justify-between gap-3 mb-2.5">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-cyan-400 text-black font-black flex items-center justify-center text-sm shadow">🔗</span>
+        <div>
+          <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Enlace Calculado en Vivo</h4>
+          <span class="text-[10px] text-gray-400 font-mono">Diferencia de Electronegatividad (ΔEN)</span>
+        </div>
+      </div>
+      <button onclick="dismissPresentationFloater()" class="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="presentationFloaterContent">
+      <!-- Inyectado dinámicamente con JS -->
+    </div>
+  </div>
+
+  <!-- BARRA DE NAVEGACIÓN SUPERIOR (COMPACTA) -->
+  <header class="shrink-0 border-b border-gray-800/80 bg-gray-950/95 px-3 lg:px-5 py-2 flex items-center justify-between gap-3 shadow-md">
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 via-sky-400 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/30 text-black font-extrabold text-lg">
+        ⚛
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-black tracking-tight text-white flex items-center gap-2">
+          Tabla Periódica 
+          <span class="text-cyan-300 text-[10px] font-bold px-2 py-0.2 rounded-full bg-cyan-950 border border-cyan-400/40">
+            Propiedades & Enlaces
+          </span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Barra de acciones rápidas y buscador -->
+    <div class="flex items-center gap-2 flex-wrap justify-end">
+      <div class="relative">
+        <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+        <input 
+          id="searchInput" 
+          type="text" 
+          placeholder="Buscar elemento..." 
+          oninput="filterElements(this.value)"
+          class="bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-2.5 py-1 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 w-36 sm:w-44 font-medium"
+        />
+      </div>
+
+      <!-- BOTÓN MODO ENLACE DIRECTO -->
+      <button id="bondingModeBtn" onclick="toggleBondingMode()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-950/80 hover:bg-purple-900 border border-purple-500 text-purple-200 transition flex items-center gap-1.5">
+        <i data-lucide="link" class="w-3.5 h-3.5 text-purple-400"></i>
+        <span id="bondingModeBtnText">Enlazar</span>
+      </button>
+
+      <!-- BOTÓN MODO PRESENTACIÓN -->
+      <button id="presentationBtn" onclick="togglePresentationMode()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-950/80 hover:bg-amber-900 border border-amber-500 text-amber-200 transition flex items-center gap-1.5">
+        <i data-lucide="maximize" id="presentationIcon" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span id="presentationBtnText">Presentación</span>
+      </button>
+
+      <button id="toggleTrendsBtn" onclick="toggleTrends()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-200 transition flex items-center gap-1.5">
+        <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Tendencias</span>
+      </button>
+
+      <button onclick="openBondModal()" class="px-2.5 py-1 rounded-lg text-xs font-black bg-cyan-400 hover:bg-cyan-300 text-black transition flex items-center gap-1.5 shadow-sm shadow-cyan-400/20">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span>ΔEN</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL FLUIDO A LA PANTALLA -->
+  <main class="flex-1 min-h-0 w-full p-2 lg:p-3 flex flex-col gap-2 overflow-hidden">
+    
+    <!-- BANNER DE MODO ENLACE ACTIVO -->
+    <div id="bondActiveBanner" class="hidden shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-950/90 via-gray-950 to-cyan-950/90 border border-purple-500 shadow flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-lg bg-purple-500 text-white font-black flex items-center justify-center text-xs">🔗</span>
+        <span class="text-xs font-bold text-white">Modo Enlace: <span class="text-purple-300 font-normal">Haz clic en 2 elementos para calcular ΔEN.</span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="bondStatusHint" class="text-[11px] font-bold text-gray-300 bg-gray-900 px-2 py-0.5 rounded border border-gray-700">Selecciona el átomo 1</span>
+        <button onclick="clearBondSelection()" class="px-2 py-0.5 rounded bg-gray-800 text-[11px] text-gray-300 font-bold border border-gray-600">Reset</button>
+      </div>
+    </div>
+
+    <!-- SELECTOR DE PROPIEDADES (COMPACTO) -->
+    <section id="propertySelectorSection" class="shrink-0 bg-gray-900/90 border border-gray-800 rounded-xl px-3 py-2 flex flex-col gap-1.5 shadow">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <!-- BOTONES DE PROPIEDAD -->
+        <div class="flex items-center gap-1.5 flex-wrap flex-1">
+          <button onclick="setProperty('en')" id="btn-prop-en" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-cyan-950/70 border-cyan-400 text-cyan-100">
+            <span class="text-xs font-black">Electronegatividad</span>
+            <span class="text-[10px] mono bg-cyan-900 px-1 rounded text-cyan-200">Pauling</span>
+          </button>
+          <button onclick="setProperty('ar')" id="btn-prop-ar" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-gray-950/80 border-gray-800 text-gray-300 hover:text-white">
+            <span class="text-xs font-black">Radio Atómico</span>
+            <span class="text-[10px] mono bg-gray-800 px-1 rounded text-gray-400">pm</span>
+          </button>
+          <button onclick="setProperty('ir')" id="btn-prop-ir" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-gray-950/80 border-gray-800 text-gray-300 hover:text-white">
+            <span class="text-xs font-black">Radio Iónico</span>
+            <span class="text-[10px] mono bg-gray-800 px-1 rounded text-gray-400">pm</span>
+          </button>
+          <button onclick="setProperty('ie')" id="btn-prop-ie" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-gray-950/80 border-gray-800 text-gray-300 hover:text-white">
+            <span class="text-xs font-black">1ª E. Ionización</span>
+            <span class="text-[10px] mono bg-gray-800 px-1 rounded text-gray-400">kJ/mol</span>
+          </button>
+          <button onclick="setProperty('ea')" id="btn-prop-ea" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-gray-950/80 border-gray-800 text-gray-300 hover:text-white">
+            <span class="text-xs font-black">Afinidad Electrónica</span>
+            <span class="text-[10px] mono bg-gray-800 px-1 rounded text-gray-400">kJ/mol</span>
+          </button>
+          <button onclick="setProperty('mc')" id="btn-prop-mc" class="prop-btn px-2.5 py-1 rounded-lg border text-left transition flex items-center gap-1.5 bg-gray-950/80 border-gray-800 text-gray-300 hover:text-white">
+            <span class="text-xs font-black">Carácter Metálico</span>
+            <span class="text-[10px] mono bg-gray-800 px-1 rounded text-gray-400">Índice</span>
+          </button>
+        </div>
+
+        <div class="text-[11px] text-gray-300 flex items-center gap-2 bg-gray-950 px-2.5 py-1 rounded-lg border border-gray-800 shrink-0">
+          <span class="text-gray-400 font-bold">Intensidad:</span>
+          <span class="text-[10px] text-gray-400">Bajo</span>
+          <div id="gradientLegendBar" class="h-2.5 w-24 rounded border border-gray-700"></div>
+          <span class="text-[10px] text-white font-bold">Alto</span>
+        </div>
+      </div>
+
+      <!-- EXPLICADOR PEDAGÓGICO DE LA PROPIEDAD SELECCIONADA (LÍNEA RESUMIDA) -->
+      <div id="propertyExplanationBox" class="text-[11px] text-gray-300 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap pt-1 border-t border-gray-800/80">
+        <!-- Render dinámico desde JS -->
+      </div>
+    </section>
+
+    <!-- ÁREA DE LA TABLA PERIÓDICA CON OVERLAYS DE VECTORES (AJUSTE FLEX 1) -->
+    <div id="tableContainer" class="flex-1 min-h-0 bg-gray-950 border border-gray-800 rounded-xl p-2 md:p-2.5 shadow-2xl flex flex-col justify-between overflow-x-auto overflow-y-auto relative group">
+      
+      <!-- PEQUEÑO BOTÓN FLOTANTE COMPACTO DE SCROLL VERTICAL -->
+      <button 
+        id="quickScrollBtn" 
+        onclick="toggleQuickVerticalScroll()" 
+        title="Desplazamiento vertical (Bajar al bloque f / Subir)"
+        class="sticky bottom-2 right-2 ml-auto z-40 bg-gray-900/90 hover:bg-cyan-500 hover:text-black text-cyan-300 border border-cyan-500/50 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-xl flex items-center gap-1.5 text-[11px] font-bold transition-all active:scale-95">
+        <i data-lucide="arrow-down" class="w-3.5 h-3.5 stroke-[2.5]" id="scrollBtnIcon"></i>
+        <span id="scrollBtnText">Bajar</span>
+      </button>
+
+      <!-- VECTORES VISUALES DE TENDENCIAS (CON SÍMBOLO + Y DIRECCIONES DINÁMICAS) -->
+      <div id="trendArrowsOverlay" class="shrink-0 mb-1 pointer-events-none transition-all duration-300">
+        <div id="trendVectorsContainer" class="flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl border border-cyan-500/40 bg-gray-900/95 shadow-lg">
+          <!-- Inyectado dinámicamente con JS según la propiedad activa -->
+        </div>
+      </div>
+
+      <!-- GRID DE LA TABLA (7 FILAS) -->
+      <div id="periodicGrid" class="periodic-table-grid w-full min-w-[760px] flex-1">
+        <!-- Inyectado por JS -->
+      </div>
+
+      <!-- FILAS LANTÁNIDOS Y ACTÍNIDOS (BLOQUE F) -->
+      <div class="mt-1.5 pt-1.5 border-t border-gray-800 flex flex-col w-full min-w-[760px] shrink-0">
+        <div class="w-full flex items-center justify-between px-2 text-[10px] text-gray-400 font-bold mb-0.5">
+          <span class="text-cyan-400">Tierras Raras (Bloque f)</span>
+          <span class="font-mono text-[9px]">Lantánidos (4f) & Actínidos (5f)</span>
+        </div>
+        <div id="lanthanoidsGrid" class="periodic-table-grid w-full"></div>
+        <div id="actinoidsGrid" class="periodic-table-grid w-full mt-1"></div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN INFERIOR: ENLACE QUÍMICO / COMPARATIVA (COMPACTA) -->
+    <section id="bottomSection" class="shrink-0 bg-gray-900/95 border border-gray-800 rounded-xl px-3 py-2 shadow-lg">
+      <div id="comparisonSlot" class="flex items-center justify-between gap-3 min-h-[46px]">
+        <!-- Dinámico con JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE DETALLE INDIVIDUAL DE ELEMENTO -->
+  <div id="elementModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <button onclick="closeModal()" class="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div id="modalContent">
+        <!-- Render dinámico con JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL / CALCULADORA DE ENLACES QUÍMICOS (ΔEN) -->
+  <div id="bondModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative">
+      <button onclick="closeBondModal()" class="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-12 h-12 rounded-xl bg-cyan-400 text-black flex items-center justify-center font-black shadow-lg shadow-cyan-500/20">
+          <i data-lucide="link-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-black text-white">Calculadora y Clasificador de Enlaces Químicos</h2>
+          <p class="text-xs text-gray-300">Diferencia de Electronegatividad (ΔEN de Linus Pauling)</p>
+        </div>
+      </div>
+
+      <!-- Selectores de Átomos -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">Primer Átomo:</label>
+          <select id="atomSelect1" onchange="calcBond()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-cyan-400 font-semibold"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">Segundo Átomo:</label>
+          <select id="atomSelect2" onchange="calcBond()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-cyan-400 font-semibold"></select>
+        </div>
+      </div>
+
+      <!-- Resultado de la Calculadora -->
+      <div id="bondResultCard" class="p-5 rounded-2xl bg-gray-950 border border-gray-800 flex flex-col gap-3">
+        <!-- Dinámico con JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT DE DATOS Y LÓGICA -->
+  <script>
+    // BASE DE DATOS DE ELEMENTOS (Con propiedades periódicas clave)
+    const elementsData = [
+      { z: 1, s: "H", n: "Hidrógeno", g: 1, p: 1, c: "nonmetal", en: 2.20, ar: 53, ir: 12, ie: 1312, ea: 73, mc: 1 },
+      { z: 2, s: "He", n: "Helio", g: 18, p: 1, c: "noble", en: null, ar: 31, ir: null, ie: 2372, ea: 0, mc: 0 },
+      
+      { z: 3, s: "Li", n: "Litio", g: 1, p: 2, c: "alkali", en: 0.98, ar: 167, ir: 76, ie: 520, ea: 60, mc: 8 },
+      { z: 4, s: "Be", n: "Berilio", g: 2, p: 2, c: "alkaline", en: 1.57, ar: 112, ir: 45, ie: 899, ea: 0, mc: 6 },
+      { z: 5, s: "B", n: "Boro", g: 13, p: 2, c: "metalloid", en: 2.04, ar: 87, ir: 27, ie: 801, ea: 27, mc: 4 },
+      { z: 6, s: "C", n: "Carbono", g: 14, p: 2, c: "nonmetal", en: 2.55, ar: 67, ir: 16, ie: 1086, ea: 122, mc: 2 },
+      { z: 7, s: "N", n: "Nitrógeno", g: 15, p: 2, c: "nonmetal", en: 3.04, ar: 56, ir: 146, ie: 1402, ea: 7, mc: 1 },
+      { z: 8, s: "O", n: "Oxígeno", g: 16, p: 2, c: "nonmetal", en: 3.44, ar: 48, ir: 140, ie: 1314, ea: 141, mc: 1 },
+      { z: 9, s: "F", n: "Flúor", g: 17, p: 2, c: "halogen", en: 3.98, ar: 42, ir: 133, ie: 1681, ea: 328, mc: 0 },
+      { z: 10, s: "Ne", n: "Neón", g: 18, p: 2, c: "noble", en: null, ar: 38, ir: null, ie: 2080, ea: 0, mc: 0 },
+
+      { z: 11, s: "Na", n: "Sodio", g: 1, p: 3, c: "alkali", en: 0.93, ar: 190, ir: 102, ie: 496, ea: 53, mc: 9 },
+      { z: 12, s: "Mg", n: "Magnesio", g: 2, p: 3, c: "alkaline", en: 1.31, ar: 145, ir: 72, ie: 738, ea: 0, mc: 7 },
+      { z: 13, s: "Al", n: "Aluminio", g: 13, p: 3, c: "metal", en: 1.61, ar: 118, ir: 53, ie: 578, ea: 43, mc: 6 },
+      { z: 14, s: "Si", n: "Silicio", g: 14, p: 3, c: "metalloid", en: 1.90, ar: 111, ir: 40, ie: 786, ea: 134, mc: 4 },
+      { z: 15, s: "P", n: "Fósforo", g: 15, p: 3, c: "nonmetal", en: 2.19, ar: 98, ir: 212, ie: 1012, ea: 72, mc: 2 },
+      { z: 16, s: "S", n: "Azufre", g: 16, p: 3, c: "nonmetal", en: 2.58, ar: 88, ir: 184, ie: 1000, ea: 200, mc: 2 },
+      { z: 17, s: "Cl", n: "Cloro", g: 17, p: 3, c: "halogen", en: 3.16, ar: 79, ir: 181, ie: 1251, ea: 349, mc: 1 },
+      { z: 18, s: "Ar", n: "Argón", g: 18, p: 3, c: "noble", en: null, ar: 71, ir: null, ie: 1521, ea: 0, mc: 0 },
+
+      { z: 19, s: "K", n: "Potasio", g: 1, p: 4, c: "alkali", en: 0.82, ar: 243, ir: 138, ie: 419, ea: 48, mc: 10 },
+      { z: 20, s: "Ca", n: "Calcio", g: 2, p: 4, c: "alkaline", en: 1.00, ar: 194, ir: 100, ie: 590, ea: 2, mc: 8 },
+      { z: 21, s: "Sc", n: "Escandio", g: 3, p: 4, c: "transition", en: 1.36, ar: 184, ir: 75, ie: 633, ea: 18, mc: 7 },
+      { z: 22, s: "Ti", n: "Titanio", g: 4, p: 4, c: "transition", en: 1.54, ar: 176, ir: 61, ie: 658, ea: 8, mc: 7 },
+      { z: 23, s: "V", n: "Vanadio", g: 5, p: 4, c: "transition", en: 1.63, ar: 171, ir: 54, ie: 650, ea: 51, mc: 7 },
+      { z: 24, s: "Cr", n: "Cromo", g: 6, p: 4, c: "transition", en: 1.66, ar: 166, ir: 62, ie: 653, ea: 65, mc: 7 },
+      { z: 25, s: "Mn", n: "Manganeso", g: 7, p: 4, c: "transition", en: 1.55, ar: 161, ir: 67, ie: 717, ea: 0, mc: 6 },
+      { z: 26, s: "Fe", n: "Hierro", g: 8, p: 4, c: "transition", en: 1.83, ar: 156, ir: 61, ie: 762, ea: 16, mc: 6 },
+      { z: 27, s: "Co", n: "Cobalto", g: 9, p: 4, c: "transition", en: 1.88, ar: 152, ir: 65, ie: 760, ea: 64, mc: 6 },
+      { z: 28, s: "Ni", n: "Níquel", g: 10, p: 4, c: "transition", en: 1.91, ar: 149, ir: 69, ie: 737, ea: 112, mc: 6 },
+      { z: 29, s: "Cu", n: "Cobre", g: 11, p: 4, c: "transition", en: 1.90, ar: 145, ir: 73, ie: 745, ea: 119, mc: 6 },
+      { z: 30, s: "Zn", n: "Cinc", g: 12, p: 4, c: "transition", en: 1.65, ar: 142, ir: 74, ie: 906, ea: 0, mc: 6 },
+      { z: 31, s: "Ga", n: "Galio", g: 13, p: 4, c: "metal", en: 1.81, ar: 136, ir: 62, ie: 579, ea: 29, mc: 5 },
+      { z: 32, s: "Ge", n: "Germanio", g: 14, p: 4, c: "metalloid", en: 2.01, ar: 125, ir: 53, ie: 762, ea: 119, mc: 4 },
+      { z: 33, s: "As", n: "Arsénico", g: 15, p: 4, c: "metalloid", en: 2.18, ar: 114, ir: 58, ie: 947, ea: 78, mc: 3 },
+      { z: 34, s: "Se", n: "Selenio", g: 16, p: 4, c: "nonmetal", en: 2.55, ar: 103, ir: 198, ie: 941, ea: 195, mc: 2 },
+      { z: 35, s: "Br", n: "Bromo", g: 17, p: 4, c: "halogen", en: 2.96, ar: 94, ir: 196, ie: 1140, ea: 325, mc: 1 },
+      { z: 36, s: "Kr", n: "Kriptón", g: 18, p: 4, c: "noble", en: 3.00, ar: 88, ir: null, ie: 1351, ea: 0, mc: 0 },
+
+      { z: 37, s: "Rb", n: "Rubidio", g: 1, p: 5, c: "alkali", en: 0.82, ar: 265, ir: 152, ie: 403, ea: 47, mc: 10 },
+      { z: 38, s: "Sr", n: "Estroncio", g: 2, p: 5, c: "alkaline", en: 0.95, ar: 219, ir: 118, ie: 549, ea: 5, mc: 8 },
+      { z: 39, s: "Y", n: "Itrio", g: 3, p: 5, c: "transition", en: 1.22, ar: 212, ir: 90, ie: 600, ea: 30, mc: 7 },
+      { z: 40, s: "Zr", n: "Circonio", g: 4, p: 5, c: "transition", en: 1.33, ar: 206, ir: 72, ie: 640, ea: 41, mc: 7 },
+      { z: 41, s: "Nb", n: "Niobio", g: 5, p: 5, c: "transition", en: 1.60, ar: 198, ir: 69, ie: 652, ea: 86, mc: 7 },
+      { z: 42, s: "Mo", n: "Molibdeno", g: 6, p: 5, c: "transition", en: 2.16, ar: 190, ir: 65, ie: 684, ea: 72, mc: 6 },
+      { z: 43, s: "Tc", n: "Tecnecio", g: 7, p: 5, c: "transition", en: 1.90, ar: 183, ir: 60, ie: 702, ea: 53, mc: 6 },
+      { z: 44, s: "Ru", n: "Rutenio", g: 8, p: 5, c: "transition", en: 2.20, ar: 178, ir: 62, ie: 710, ea: 101, mc: 6 },
+      { z: 45, s: "Rh", n: "Rodio", g: 9, p: 5, c: "transition", en: 2.28, ar: 173, ir: 67, ie: 720, ea: 110, mc: 6 },
+      { z: 46, s: "Pd", n: "Paladio", g: 10, p: 5, c: "transition", en: 2.20, ar: 169, ir: 86, ie: 804, ea: 54, mc: 6 },
+      { z: 47, s: "Ag", n: "Plata", g: 11, p: 5, c: "transition", en: 1.93, ar: 165, ir: 115, ie: 731, ea: 126, mc: 6 },
+      { z: 48, s: "Cd", n: "Cadmio", g: 12, p: 5, c: "transition", en: 1.69, ar: 161, ir: 95, ie: 868, ea: 0, mc: 6 },
+      { z: 49, s: "In", n: "Indio", g: 13, p: 5, c: "metal", en: 1.78, ar: 156, ir: 80, ie: 558, ea: 39, mc: 5 },
+      { z: 50, s: "Sn", n: "Estaño", g: 14, p: 5, c: "metal", en: 1.96, ar: 145, ir: 69, ie: 709, ea: 107, mc: 5 },
+      { z: 51, s: "Sb", n: "Antimonio", g: 15, p: 5, c: "metalloid", en: 2.05, ar: 133, ir: 76, ie: 834, ea: 103, mc: 4 },
+      { z: 52, s: "Te", n: "Telurio", g: 16, p: 5, c: "metalloid", en: 2.10, ar: 123, ir: 221, ie: 869, ea: 190, mc: 3 },
+      { z: 53, s: "I", n: "Yodo", g: 17, p: 5, c: "halogen", en: 2.66, ar: 115, ir: 216, ie: 1008, ea: 295, mc: 1 },
+      { z: 54, s: "Xe", n: "Xenón", g: 18, p: 5, c: "noble", en: 2.60, ar: 108, ir: null, ie: 1170, ea: 0, mc: 0 },
+
+      { z: 55, s: "Cs", n: "Cesio", g: 1, p: 6, c: "alkali", en: 0.79, ar: 298, ir: 167, ie: 376, ea: 46, mc: 10 },
+      { z: 56, s: "Ba", n: "Bario", g: 2, p: 6, c: "alkaline", en: 0.89, ar: 253, ir: 135, ie: 503, ea: 14, mc: 9 },
+      // Lantánidos condensados en la casilla 57-71
+      { z: 57, s: "La-Lu", n: "Lantánidos", g: 3, p: 6, c: "lanthanoid", isGroupPlaceholder: true },
+      { z: 72, s: "Hf", n: "Hafnio", g: 4, p: 6, c: "transition", en: 1.30, ar: 208, ir: 71, ie: 659, ea: 0, mc: 7 },
+      { z: 73, s: "Ta", n: "Tántalo", g: 5, p: 6, c: "transition", en: 1.50, ar: 200, ir: 64, ie: 761, ea: 31, mc: 7 },
+      { z: 74, s: "W", n: "Wolframio", g: 6, p: 6, c: "transition", en: 2.36, ar: 193, ir: 62, ie: 770, ea: 79, mc: 6 },
+      { z: 75, s: "Re", n: "Renio", g: 7, p: 6, c: "transition", en: 1.90, ar: 188, ir: 58, ie: 760, ea: 15, mc: 6 },
+      { z: 76, s: "Os", n: "Osmio", g: 8, p: 6, c: "transition", en: 2.20, ar: 185, ir: 63, ie: 840, ea: 106, mc: 6 },
+      { z: 77, s: "Ir", n: "Iridio", g: 9, p: 6, c: "transition", en: 2.20, ar: 180, ir: 68, ie: 880, ea: 151, mc: 6 },
+      { z: 78, s: "Pt", n: "Platino", g: 10, p: 6, c: "transition", en: 2.28, ar: 177, ir: 86, ie: 870, ea: 205, mc: 6 },
+      { z: 79, s: "Au", n: "Oro", g: 11, p: 6, c: "transition", en: 2.54, ar: 174, ir: 85, ie: 890, ea: 223, mc: 6 },
+      { z: 80, s: "Hg", n: "Mercurio", g: 12, p: 6, c: "transition", en: 2.00, ar: 171, ir: 102, ie: 1007, ea: 0, mc: 5 },
+      { z: 81, s: "Tl", n: "Talio", g: 13, p: 6, c: "metal", en: 1.62, ar: 156, ir: 89, ie: 589, ea: 19, mc: 5 },
+      { z: 82, s: "Pb", n: "Plomo", g: 14, p: 6, c: "metal", en: 2.33, ar: 154, ir: 78, ie: 716, ea: 35, mc: 5 },
+      { z: 83, s: "Bi", n: "Bismuto", g: 15, p: 6, c: "metal", en: 2.02, ar: 143, ir: 103, ie: 703, ea: 91, mc: 4 },
+      { z: 84, s: "Po", n: "Polonio", g: 16, p: 6, c: "metalloid", en: 2.00, ar: 135, ir: 94, ie: 812, ea: 183, mc: 4 },
+      { z: 85, s: "At", n: "Ástato", g: 17, p: 6, c: "halogen", en: 2.20, ar: 127, ir: 62, ie: 899, ea: 270, mc: 2 },
+      { z: 86, s: "Rn", n: "Radón", g: 18, p: 6, c: "noble", en: null, ar: 120, ir: null, ie: 1037, ea: 0, mc: 0 },
+
+      { z: 87, s: "Fr", n: "Francio", g: 1, p: 7, c: "alkali", en: 0.70, ar: 348, ir: 180, ie: 380, ea: 44, mc: 10 },
+      { z: 88, s: "Ra", n: "Radio", g: 2, p: 7, c: "alkaline", en: 0.90, ar: 283, ir: 148, ie: 509, ea: 10, mc: 9 },
+      // Actínidos condensados
+      { z: 89, s: "Ac-Lr", n: "Actínidos", g: 3, p: 7, c: "actinoid", isGroupPlaceholder: true }
+    ];
+
+    // ELEMENTOS DEL BLOQUE F (Lantánidos y Actínidos para fila inferior)
+    const fBlockElements = [
+      // Lantánidos
+      { z: 57, s: "La", n: "Lantano", fSeries: 'lan', en: 1.10, ar: 217, ir: 103, ie: 538, ea: 48, mc: 7 },
+      { z: 58, s: "Ce", n: "Cerio", fSeries: 'lan', en: 1.12, ar: 204, ir: 102, ie: 534, ea: 50, mc: 7 },
+      { z: 59, s: "Pr", n: "Praseodimio", fSeries: 'lan', en: 1.13, ar: 203, ir: 99, ie: 527, ea: 50, mc: 7 },
+      { z: 60, s: "Nd", n: "Neodimio", fSeries: 'lan', en: 1.14, ar: 201, ir: 98, ie: 533, ea: 50, mc: 7 },
+      { z: 61, s: "Pm", n: "Prometio", fSeries: 'lan', en: 1.13, ar: 199, ir: 97, ie: 540, ea: 50, mc: 7 },
+      { z: 62, s: "Sm", n: "Samario", fSeries: 'lan', en: 1.17, ar: 198, ir: 96, ie: 545, ea: 50, mc: 7 },
+      { z: 63, s: "Eu", n: "Europio", fSeries: 'lan', en: 1.20, ar: 198, ir: 95, ie: 547, ea: 50, mc: 7 },
+      { z: 64, s: "Gd", n: "Gadolinio", fSeries: 'lan', en: 1.20, ar: 196, ir: 94, ie: 593, ea: 50, mc: 7 },
+      { z: 65, s: "Tb", n: "Terbio", fSeries: 'lan', en: 1.22, ar: 194, ir: 92, ie: 566, ea: 50, mc: 7 },
+      { z: 66, s: "Dy", n: "Disprosio", fSeries: 'lan', en: 1.23, ar: 192, ir: 91, ie: 573, ea: 50, mc: 7 },
+      { z: 67, s: "Ho", n: "Holmio", fSeries: 'lan', en: 1.24, ar: 192, ir: 90, ie: 581, ea: 50, mc: 7 },
+      { z: 68, s: "Er", n: "Erbio", fSeries: 'lan', en: 1.24, ar: 189, ir: 89, ie: 589, ea: 50, mc: 7 },
+      { z: 69, s: "Tm", n: "Tulio", fSeries: 'lan', en: 1.25, ar: 188, ir: 88, ie: 597, ea: 50, mc: 7 },
+      { z: 70, s: "Yb", n: "Iterbio", fSeries: 'lan', en: 1.10, ar: 187, ir: 87, ie: 603, ea: 50, mc: 7 },
+      { z: 71, s: "Lu", n: "Lutecio", fSeries: 'lan', en: 1.27, ar: 187, ir: 86, ie: 524, ea: 50, mc: 7 },
+      // Actínidos
+      { z: 89, s: "Ac", n: "Actinio", fSeries: 'act', en: 1.10, ar: 215, ir: 112, ie: 499, ea: 33, mc: 8 },
+      { z: 90, s: "Th", n: "Torio", fSeries: 'act', en: 1.30, ar: 206, ir: 94, ie: 587, ea: 50, mc: 7 },
+      { z: 91, s: "Pa", n: "Protactinio", fSeries: 'act', en: 1.50, ar: 200, ir: 90, ie: 568, ea: 50, mc: 7 },
+      { z: 92, s: "U", n: "Uranio", fSeries: 'act', en: 1.38, ar: 196, ir: 89, ie: 598, ea: 50, mc: 7 }
+    ];
+
+    // INFORMACIÓN METODOLÓGICA DE CADA PROPIEDAD
+    const propConfig = {
+      en: {
+        title: "Electronegatividad (Escala de Pauling)",
+        unit: "adim.",
+        desc: "Capacidad relativa de un átomo para atraer hacia sí el par de electrones compartidos en un enlace.",
+        trendPeriod: "Aumenta hacia la derecha (mayor carga nuclear efectiva Z_eff retiene con más fuerza).",
+        trendGroup: "Disminuye hacia abajo (mayor distancia y apantallamiento reducen la atracción).",
+        hTrend: { dir: "right", label: "Aumenta en período hacia la derecha" },
+        vTrend: { dir: "up", label: "Aumenta en grupo hacia arriba" },
+        min: 0.7, max: 4.0,
+        colorScale: (v) => {
+          if (v === null || v === undefined) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, (v - 0.7) / 3.3));
+          // Rango azul noche a naranja/ámbar luminoso
+          const hue = 220 - (t * 190); // 220 (azul) -> 30 (naranja dorado)
+          const l = 16 + (t * 14); // 16% a 30% para mantener texto ultra legible
+          return {
+            bg: `hsl(${hue}, 80%, ${l}%)`,
+            border: `hsl(${hue}, 90%, 55%)`,
+            text: `hsl(${hue}, 100%, 80%)`
+          };
+        }
+      },
+      ar: {
+        title: "Radio Atómico",
+        unit: "pm",
+        desc: "Distancia media entre el núcleo atómico y la capa más externa de la nube de electrones.",
+        trendPeriod: "Disminuye hacia la derecha (la atracción nuclear creciente comprime los orbitales).",
+        trendGroup: "Aumenta hacia abajo (se van sumando niveles de energía cuánticos completos).",
+        hTrend: { dir: "left", label: "Aumenta en período hacia la izquierda" },
+        vTrend: { dir: "down", label: "Aumenta en grupo hacia abajo" },
+        min: 30, max: 350,
+        colorScale: (v) => {
+          if (!v) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, (v - 30) / 320));
+          const hue = 270 - (t * 130); // Púrpura oscuro a esmeralda/verde intenso
+          const l = 15 + (t * 15);
+          return {
+            bg: `hsl(${hue}, 75%, ${l}%)`,
+            border: `hsl(${hue}, 85%, 55%)`,
+            text: `hsl(${hue}, 100%, 75%)`
+          };
+        }
+      },
+      ir: {
+        title: "Radio Iónico",
+        unit: "pm",
+        desc: "Tamaño efectivo al formar cationes (+) o aniones (-). Los aniones se dilatan por repulsión electrónica.",
+        trendPeriod: "Disminuye en series isoelectrónicas a medida que aumenta el número atómico.",
+        trendGroup: "Aumenta al descender por un grupo por adición de capas.",
+        hTrend: { dir: "left", label: "Aumenta en período hacia la izquierda" },
+        vTrend: { dir: "down", label: "Aumenta en grupo hacia abajo" },
+        min: 15, max: 230,
+        colorScale: (v) => {
+          if (!v) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, (v - 15) / 215));
+          const hue = 260 - (t * 100);
+          const l = 15 + (t * 15);
+          return {
+            bg: `hsl(${hue}, 75%, ${l}%)`,
+            border: `hsl(${hue}, 85%, 55%)`,
+            text: `hsl(${hue}, 100%, 75%)`
+          };
+        }
+      },
+      ie: {
+        title: "Primera Energía de Ionización",
+        unit: "kJ/mol",
+        desc: "Energía mínima necesaria para arrancar el electrón más débilmente retenido en estado gaseoso.",
+        trendPeriod: "Aumenta hacia la derecha (menor tamaño y mayor Z_eff ligan más al electrón).",
+        trendGroup: "Disminuye hacia abajo (mayor radio y apantallamiento facilitan la remoción).",
+        hTrend: { dir: "right", label: "Aumenta en período hacia la derecha" },
+        vTrend: { dir: "up", label: "Aumenta en grupo hacia arriba" },
+        min: 370, max: 2400,
+        colorScale: (v) => {
+          if (!v) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, (v - 370) / 2030));
+          const hue = 210 - (t * 170); // Azul a Rojo brillante
+          const l = 15 + (t * 15);
+          return {
+            bg: `hsl(${hue}, 80%, ${l}%)`,
+            border: `hsl(${hue}, 90%, 55%)`,
+            text: `hsl(${hue}, 100%, 80%)`
+          };
+        }
+      },
+      ea: {
+        title: "Afinidad Electrónica",
+        unit: "kJ/mol",
+        desc: "Energía liberada cuando un átomo neutro en estado gaseoso captura un electrón libre.",
+        trendPeriod: "Aumenta hacia la derecha, con valores máximos en los halógenos.",
+        trendGroup: "Disminuye hacia abajo debido a la mayor distancia al núcleo.",
+        hTrend: { dir: "right", label: "Aumenta en período hacia la derecha" },
+        vTrend: { dir: "up", label: "Aumenta en grupo hacia arriba" },
+        min: 0, max: 350,
+        colorScale: (v) => {
+          if (v === null || v === undefined) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, v / 350));
+          const hue = 240 - (t * 180);
+          const l = 15 + (t * 15);
+          return {
+            bg: `hsl(${hue}, 80%, ${l}%)`,
+            border: `hsl(${hue}, 90%, 55%)`,
+            text: `hsl(${hue}, 100%, 80%)`
+          };
+        }
+      },
+      mc: {
+        title: "Carácter Metálico",
+        unit: "Índice (0-10)",
+        desc: "Facilidad con la que el átomo pierde electrones comportándose como un conductor y reductor.",
+        trendPeriod: "Disminuye notablemente de izquierda a derecha.",
+        trendGroup: "Aumenta de arriba hacia abajo (los metales más activos están abajo a la izquierda).",
+        hTrend: { dir: "left", label: "Aumenta en período hacia la izquierda" },
+        vTrend: { dir: "down", label: "Aumenta en grupo hacia abajo" },
+        min: 0, max: 10,
+        colorScale: (v) => {
+          if (v === null || v === undefined) return { bg: '#111827', border: '#374151', text: '#9ca3af' };
+          const t = Math.max(0, Math.min(1, v / 10));
+          const hue = 280 - (t * 230); // Azul oscuro a Amarillo dorado
+          const l = 15 + (t * 15);
+          return {
+            bg: `hsl(${hue}, 80%, ${l}%)`,
+            border: `hsl(${hue}, 90%, 55%)`,
+            text: `hsl(${hue}, 100%, 80%)`
+          };
+        }
+      }
+    };
+
+    // ESTADO DE LA APLICACIÓN
+    let currentProp = 'en';
+    let selectedElement1 = null;
+    let selectedElement2 = null;
+    let showTrends = true; // Mostrado por defecto con las nuevas flechas (+)
+    let currentSearchTerm = '';
+    let isBondingMode = false;
+    let isPresentationMode = false;
+
+    // INICIALIZACIÓN
+    window.addEventListener('DOMContentLoaded', () => {
+      renderPeriodicTable();
+      renderFBlock();
+      updatePropertyUI();
+      populateBondSelects();
+      calcBond();
+      lucide.createIcons();
+    });
+
+    // MODO PRESENTACIÓN (Aumenta dimensiones, tipografías y oculta distracciones)
+    function togglePresentationMode() {
+      isPresentationMode = !isPresentationMode;
+      const body = document.body;
+      const btn = document.getElementById('presentationBtn');
+      const text = document.getElementById('presentationBtnText');
+      const icon = document.getElementById('presentationIcon');
+
+      if (isPresentationMode) {
+        body.classList.add('presentation-mode');
+        btn.classList.add('bg-amber-500', 'text-black', 'border-amber-300');
+        btn.classList.remove('bg-amber-950/80', 'text-amber-200');
+        text.textContent = "Salir Presentación (Esc)";
+        icon.setAttribute('data-lucide', 'minimize');
+        
+        // Petición nativa de pantalla completa opcional
+        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else {
+        body.classList.remove('presentation-mode');
+        btn.classList.remove('bg-amber-500', 'text-black', 'border-amber-300');
+        btn.classList.add('bg-amber-950/80', 'text-amber-200');
+        text.textContent = "Modo Presentación";
+        icon.setAttribute('data-lucide', 'maximize');
+
+        if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      lucide.createIcons();
+    }
+
+    // Escape listener para salir de modo presentación
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isPresentationMode) {
+        togglePresentationMode();
+      }
+    });
+
+    // TOGGLE MODO ENLACE DIRECTO
+    function toggleBondingMode() {
+      isBondingMode = !isBondingMode;
+      const banner = document.getElementById('bondActiveBanner');
+      const btn = document.getElementById('bondingModeBtn');
+      const text = document.getElementById('bondingModeBtnText');
+
+      if (isBondingMode) {
+        banner.classList.remove('hidden');
+        btn.classList.add('bg-purple-600', 'text-white', 'border-purple-300');
+        btn.classList.remove('bg-purple-950/80', 'text-purple-200');
+        text.textContent = "Modo Enlazar (Activo)";
+        clearBondSelection();
+      } else {
+        banner.classList.add('hidden');
+        btn.classList.remove('bg-purple-600', 'text-white', 'border-purple-300');
+        btn.classList.add('bg-purple-950/80', 'text-purple-200');
+        text.textContent = "Modo Enlazar (Off)";
+      }
+      lucide.createIcons();
+    }
+
+    function clearBondSelection() {
+      selectedElement1 = null;
+      selectedElement2 = null;
+      document.querySelectorAll('.element-card').forEach(c => {
+        c.classList.remove('selected-el', 'bonded-atom-1', 'bonded-atom-2');
+      });
+      const hint = document.getElementById('bondStatusHint');
+      if (hint) hint.textContent = "Selecciona el átomo 1";
+      renderComparison();
+    }
+
+    // RENDER DE LA TABLA PRINCIPAL (18x7)
+    function renderPeriodicTable() {
+      const grid = document.getElementById('periodicGrid');
+      grid.innerHTML = '';
+
+      for (let period = 1; period <= 7; period++) {
+        for (let group = 1; group <= 18; group++) {
+          const el = elementsData.find(item => item.p === period && item.g === group);
+          
+          if (el) {
+            const card = createCardElement(el);
+            card.style.gridColumn = el.g;
+            card.style.gridRow = el.p;
+            grid.appendChild(card);
+          }
+        }
+      }
+    }
+
+    // RENDER DEL BLOQUE F
+    function renderFBlock() {
+      const lanGrid = document.getElementById('lanthanoidsGrid');
+      const actGrid = document.getElementById('actinoidsGrid');
+      lanGrid.innerHTML = '';
+      actGrid.innerHTML = '';
+
+      fBlockElements.filter(e => e.fSeries === 'lan').forEach((el, index) => {
+        const card = createCardElement(el);
+        card.style.gridColumn = index + 4;
+        lanGrid.appendChild(card);
+      });
+
+      fBlockElements.filter(e => e.fSeries === 'act').forEach((el, index) => {
+        const card = createCardElement(el);
+        card.style.gridColumn = index + 4;
+        actGrid.appendChild(card);
+      });
+    }
+
+    // CREACIÓN DEL ELEMENTO VISUAL (CARTA DE ALTO CONTRASTE CON NÚMEROS MÁS GRANDES)
+    function createCardElement(el) {
+      const card = document.createElement('div');
+      card.id = `el-card-${el.z}`;
+      card.className = 'element-card p-1 rounded-lg border flex flex-col justify-between cursor-pointer relative overflow-hidden h-full min-h-[38px] max-h-[58px]';
+      card.setAttribute('data-symbol', el.s.toLowerCase());
+      card.setAttribute('data-name', el.n.toLowerCase());
+      card.onclick = () => handleCardClick(el);
+
+      applyCardTheme(card, el);
+
+      const val = el[currentProp];
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between w-full leading-none pointer-events-none">
+          <span class="element-z text-[10px] lg:text-xs mono font-black text-gray-200 drop-shadow">${el.z}</span>
+          <span class="element-val text-[9px] lg:text-[10px] mono font-black px-1 py-0.2 rounded bg-black/85 shadow border border-gray-700/80" id="val-badge-${el.z}">
+            ${val !== null && val !== undefined ? val : '—'}
+          </span>
+        </div>
+        <div class="text-center my-auto leading-none pointer-events-none">
+          <span class="element-symbol font-black text-sm lg:text-base tracking-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">${el.s}</span>
+        </div>
+        <div class="text-[8px] lg:text-[9px] truncate text-center font-bold text-gray-300 leading-none pointer-events-none drop-shadow">
+          ${el.n}
+        </div>
+      `;
+
+      return card;
+    }
+
+    function applyCardTheme(card, el) {
+      if (el.isGroupPlaceholder) {
+        card.style.backgroundColor = '#1f2937';
+        card.style.borderColor = '#4b5563';
+        return;
+      }
+      const val = el[currentProp];
+      const theme = propConfig[currentProp].colorScale(val);
+
+      card.style.backgroundColor = theme.bg;
+      card.style.borderColor = theme.border;
+
+      const badge = card.querySelector(`#val-badge-${el.z}`);
+      if (badge) {
+        badge.style.color = theme.text;
+      }
+    }
+
+    // CAMBIO DE PROPIEDAD ACTIVA
+    function setProperty(propKey) {
+      currentProp = propKey;
+      
+      document.querySelectorAll('.prop-btn').forEach(btn => {
+        btn.classList.remove('bg-cyan-950/70', 'border-cyan-400', 'text-cyan-100', 'shadow-cyan-950');
+        btn.classList.add('bg-gray-950/80', 'border-gray-800', 'text-gray-300');
+      });
+      const activeBtn = document.getElementById(`btn-prop-${propKey}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-cyan-950/70', 'border-cyan-400', 'text-cyan-100', 'shadow-cyan-950');
+        activeBtn.classList.remove('bg-gray-950/80', 'border-gray-800', 'text-gray-300');
+      }
+
+      const allElements = [...elementsData, ...fBlockElements];
+      allElements.forEach(el => {
+        const card = document.getElementById(`el-card-${el.z}`);
+        if (!card) return;
+        applyCardTheme(card, el);
+
+        const badge = document.getElementById(`val-badge-${el.z}`);
+        const val = el[currentProp];
+        if (badge) {
+          badge.textContent = (val !== null && val !== undefined) ? val : '—';
+        }
+      });
+
+      updatePropertyUI();
+      renderComparison();
+    }
+
+    // ACTUALIZACIÓN DE TEXTOS Y EXPLICACIONES PEDAGÓGICAS CON ALTO CONTRASTE
+    function updatePropertyUI() {
+      const p = propConfig[currentProp];
+      const box = document.getElementById('propertyExplanationBox');
+      const presBadge = document.getElementById('presPropBadge');
+      if (presBadge) presBadge.textContent = p.title.split(' ')[0];
+      
+      box.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="font-black text-white">${p.title}</span>
+          <span class="text-cyan-300 font-mono text-[10px] font-bold">(${p.unit})</span>
+          <span class="text-gray-400 hidden md:inline">— ${p.desc}</span>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] font-bold shrink-0">
+          <span class="text-amber-300">→ Período: ${p.trendPeriod.split('(')[0]}</span>
+          <span class="text-emerald-400">↓ Grupo: ${p.trendGroup.split('(')[0]}</span>
+        </div>
+      `;
+
+      // Renderizar los vectores dinámicos con (+) y flechas indicadoras
+      renderTrendVectors(p);
+
+      // Barra de gradiente en la leyenda
+      const bar = document.getElementById('gradientLegendBar');
+      if (currentProp === 'en') {
+        bar.style.background = 'linear-gradient(to right, hsl(220, 80%, 30%), hsl(30, 90%, 55%))';
+      } else if (currentProp === 'ar') {
+        bar.style.background = 'linear-gradient(to right, hsl(270, 75%, 25%), hsl(140, 85%, 50%))';
+      } else if (currentProp === 'ie') {
+        bar.style.background = 'linear-gradient(to right, hsl(210, 80%, 25%), hsl(40, 95%, 55%))';
+      } else if (currentProp === 'mc') {
+        bar.style.background = 'linear-gradient(to right, hsl(280, 80%, 20%), hsl(50, 90%, 55%))';
+      } else {
+        bar.style.background = 'linear-gradient(to right, #1e293b, #38bdf8)';
+      }
+    }
+
+    // RENDERIZAR VECTORES DINÁMICOS DE TENDENCIA (+)
+    function renderTrendVectors(p) {
+      const container = document.getElementById('trendVectorsContainer');
+      if (!container) return;
+
+      const isRight = p.hTrend.dir === 'right';
+      const isUp = p.vTrend.dir === 'up';
+
+      container.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="trend-vector-badge bg-cyan-950/90 border border-cyan-400/70 text-cyan-200">
+            ${isRight ? '<span class="text-emerald-400 font-black text-sm">[+]</span>' : '<i data-lucide="arrow-left" class="w-4 h-4 text-cyan-400"></i>'}
+            <span>${p.hTrend.label}</span>
+            ${isRight ? '<i data-lucide="arrow-right" class="w-4 h-4 text-cyan-400"></i>' : '<span class="text-emerald-400 font-black text-sm">[+]</span>'}
+          </span>
+        </div>
+
+        <div class="text-[11px] font-black text-gray-300 hidden sm:flex items-center gap-1.5 uppercase tracking-wider">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          ${p.title.split('(')[0]}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="trend-vector-badge bg-cyan-950/90 border border-cyan-400/70 text-cyan-200">
+            ${isUp ? '<span class="text-emerald-400 font-black text-sm">[+]</span>' : '<i data-lucide="arrow-down" class="w-4 h-4 text-cyan-400"></i>'}
+            <span>${p.vTrend.label}</span>
+            ${isUp ? '<i data-lucide="arrow-up" class="w-4 h-4 text-cyan-400"></i>' : '<span class="text-emerald-400 font-black text-sm">[+]</span>'}
+          </span>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // VISIBILIDAD DE TENDENCIAS
+    function toggleTrends() {
+      showTrends = !showTrends;
+      const overlay = document.getElementById('trendArrowsOverlay');
+      if (overlay) {
+        if (showTrends) {
+          overlay.classList.remove('hidden');
+        } else {
+          overlay.classList.add('hidden');
+        }
+      }
+    }
+
+    // BUSCADOR / FILTRO DE ELEMENTOS
+    function filterElements(query) {
+      currentSearchTerm = (query || '').trim().toLowerCase();
+      const allEls = [...elementsData, ...fBlockElements];
+
+      allEls.forEach(el => {
+        const card = document.getElementById(`el-card-${el.z}`);
+        if (!card) return;
+
+        if (!currentSearchTerm) {
+          card.style.opacity = '1';
+          card.style.filter = 'none';
+        } else {
+          const match = el.s.toLowerCase().includes(currentSearchTerm) ||
+                        el.n.toLowerCase().includes(currentSearchTerm) ||
+                        el.z.toString() === currentSearchTerm;
+          if (match) {
+            card.style.opacity = '1';
+            card.style.filter = 'drop-shadow(0 0 10px #38bdf8)';
+          } else {
+            card.style.opacity = '0.2';
+            card.style.filter = 'grayscale(80%)';
+          }
+        }
+      });
+    }
+
+    // CLIC EN UNA CARTA ATÓMICA
+    function handleCardClick(el) {
+      if (el.isGroupPlaceholder) return;
+
+      const hint = document.getElementById('bondStatusHint');
+
+      // Si no hay seleccionado o ya había dos, comenzamos con el 1
+      if (!selectedElement1 || (selectedElement1 && selectedElement2)) {
+        selectedElement1 = el;
+        selectedElement2 = null;
+        if (hint) hint.innerHTML = `Átomo 1: <b class="text-cyan-400">${el.s}</b>. Ahora selecciona el átomo 2`;
+        hidePresentationFloater();
+      } else if (selectedElement1 && !selectedElement2) {
+        if (selectedElement1.z === el.z) {
+          // Doble clic en el mismo elemento abre ficha
+          openModal(el);
+          return;
+        }
+        selectedElement2 = el;
+        if (hint) hint.innerHTML = `Enlace formado: <b class="text-cyan-400">${selectedElement1.s}</b> – <b class="text-purple-400">${selectedElement2.s}</b>`;
+        
+        // Si estamos en modo presentación, desplegar apoyo flotante
+        if (isPresentationMode) {
+          showPresentationBondFloater(selectedElement1, selectedElement2);
+        }
+      }
+
+      // Marcar estilos de selección
+      document.querySelectorAll('.element-card').forEach(c => {
+        c.classList.remove('selected-el', 'bonded-atom-1', 'bonded-atom-2');
+      });
+
+      if (selectedElement1) {
+        const c1 = document.getElementById(`el-card-${selectedElement1.z}`);
+        if (c1) c1.classList.add('bonded-atom-1');
+      }
+      if (selectedElement2) {
+        const c2 = document.getElementById(`el-card-${selectedElement2.z}`);
+        if (c2) c2.classList.add('bonded-atom-2');
+      }
+
+      renderComparison();
+    }
+
+    // APOYO FLOTANTE PARA MODO PRESENTACIÓN
+    function showPresentationBondFloater(el1, el2) {
+      const floater = document.getElementById('presentationBondFloater');
+      const content = document.getElementById('presentationFloaterContent');
+      if (!floater || !content) return;
+
+      const delta = (el1.en !== null && el2.en !== null) ? Math.abs(el1.en - el2.en).toFixed(2) : null;
+      let bType = "";
+      let bColor = "";
+      let bDesc = "";
+
+      if (delta !== null) {
+        if (delta <= 0.4) {
+          bType = "Covalente No Polar";
+          bColor = "border-emerald-500 bg-emerald-950/80 text-emerald-200";
+          bDesc = "Distribución simétrica de electrones. No existe dipolo permanente (ΔEN ≤ 0.4).";
+        } else if (delta <= 1.7) {
+          bType = "Covalente Polar";
+          bColor = "border-cyan-400 bg-cyan-950/80 text-cyan-200";
+          bDesc = `El ${el1.en > el2.en ? el1.n : el2.n} concentra densidad de carga negativa (0.5 ≤ ΔEN ≤ 1.7).`;
+        } else {
+          bType = "Enlace Iónico";
+          bColor = "border-amber-400 bg-amber-950/80 text-amber-200";
+          bDesc = "Transferencia de electrones. Formación neta de catión y anión (ΔEN > 1.7).";
+        }
+      }
+
+      const ionicPerc = delta !== null ? Math.min(100, Math.max(0, (16 * delta + 3.5 * Math.pow(delta, 2)).toFixed(1))) : 0;
+
+      content.innerHTML = `
+        <div class="flex items-center justify-between gap-4 py-2 border-y border-gray-800">
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-cyan-400 text-black font-black flex items-center justify-center text-sm">${el1.s}</span>
+            <div>
+              <div class="text-xs font-bold text-white">${el1.n}</div>
+              <div class="text-[11px] font-mono text-cyan-300">EN = ${el1.en ?? '—'}</div>
+            </div>
+          </div>
+          
+          <div class="text-center font-black text-gray-500 text-xs">VS</div>
+
+          <div class="flex items-center gap-2">
+            <div>
+              <div class="text-xs font-bold text-white text-right">${el2.n}</div>
+              <div class="text-[11px] font-mono text-purple-300 text-right">EN = ${el2.en ?? '—'}</div>
+            </div>
+            <span class="w-8 h-8 rounded-lg bg-purple-500 text-white font-black flex items-center justify-center text-sm">${el2.s}</span>
+          </div>
+        </div>
+
+        ${delta !== null ? `
+          <div class="mt-3 p-3 rounded-xl border ${bColor} flex flex-col gap-1.5 shadow-inner">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider">${bType}</span>
+              <span class="text-xs mono font-black bg-black/60 px-2 py-0.5 rounded text-white border border-white/20">ΔEN = |${el1.en} - ${el2.en}| = ${delta}</span>
+            </div>
+            <p class="text-[11px] leading-tight text-gray-200">${bDesc}</p>
+            <div class="flex items-center justify-between pt-1 border-t border-white/10 text-[10px] text-gray-300">
+              <span>Carácter Iónico Estimado: <b class="text-white mono">${ionicPerc}%</b></span>
+              <button onclick="clearBondSelection(); hidePresentationFloater();" class="text-cyan-300 underline font-bold hover:text-cyan-200">Limpiar selección</button>
+            </div>
+          </div>
+        ` : `
+          <div class="mt-3 p-2.5 rounded-xl border border-rose-500 bg-rose-950/80 text-rose-300 text-xs font-bold">
+            Uno de los átomos seleccionados carece de valor de electronegatividad definido (p. ej., gas noble).
+          </div>
+        `}
+      `;
+
+      floater.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function dismissPresentationFloater() {
+      hidePresentationFloater();
+      clearBondSelection();
+    }
+
+    function hidePresentationFloater() {
+      const floater = document.getElementById('presentationBondFloater');
+      if (floater) floater.classList.add('hidden');
+    }
+
+    // RENDERIZAR BANNER DE COMPARACIÓN Y ANÁLISIS DE ENLACE COMPLETO
+    function renderComparison() {
+      const slot = document.getElementById('comparisonSlot');
+
+      if (!selectedElement1) {
+        slot.innerHTML = `
+          <div class="w-full flex items-center justify-between text-xs text-gray-300">
+            <div class="flex items-center gap-2">
+              <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-cyan-400"></i>
+              <span>Haz clic en dos átomos para calcular su <b>diferencia de electronegatividad (ΔEN)</b> y ver el enlace resultante.</span>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-gray-400">
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Átomo 1</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span> Átomo 2</span>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      if (selectedElement1 && !selectedElement2) {
+        slot.innerHTML = `
+          <div class="w-full flex items-center justify-between text-xs">
+            <div class="flex items-center gap-3">
+              <span class="w-8 h-8 rounded-lg bg-cyan-400 text-black font-black flex items-center justify-center text-sm shadow">${selectedElement1.s}</span>
+              <div>
+                <span class="font-black text-white text-sm">${selectedElement1.n} (Z=${selectedElement1.z})</span>
+                <span class="text-gray-400 ml-2">EN: <b class="text-cyan-300 font-mono">${selectedElement1.en ?? '—'}</b> | R.Atómico: ${selectedElement1.ar ?? '—'} pm</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-purple-300 font-bold text-xs bg-purple-950/70 border border-purple-500/60 px-3 py-1 rounded-lg">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>Ahora toca el 2º elemento en la tabla</span>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      const el1 = selectedElement1;
+      const el2 = selectedElement2;
+      const delta = (el1.en !== null && el2.en !== null) ? Math.abs(el1.en - el2.en).toFixed(2) : null;
+      let bType = "";
+      let bColor = "";
+
+      if (delta !== null) {
+        if (delta <= 0.4) {
+          bType = "Covalente No Polar";
+          bColor = "text-emerald-300 border-emerald-500 bg-emerald-950/80";
+        } else if (delta <= 1.7) {
+          bType = "Covalente Polar";
+          bColor = "text-cyan-300 border-cyan-500 bg-cyan-950/80";
+        } else {
+          bType = "Enlace Iónico";
+          bColor = "text-amber-300 border-amber-500 bg-amber-950/80";
+        }
+      }
+
+      slot.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-7 h-7 rounded-lg bg-cyan-400 text-black font-black flex items-center justify-center text-xs">${el1.s}</span>
+            <span class="text-xs font-bold text-white">${el1.n} <span class="text-cyan-300 font-mono">(${el1.en ?? '—'})</span></span>
+          </div>
+          <span class="text-gray-500 font-black">+</span>
+          <div class="flex items-center gap-1.5">
+            <span class="w-7 h-7 rounded-lg bg-purple-500 text-white font-black flex items-center justify-center text-xs">${el2.s}</span>
+            <span class="text-xs font-bold text-white">${el2.n} <span class="text-purple-300 font-mono">(${el2.en ?? '—'})</span></span>
+          </div>
+        </div>
+
+        ${delta !== null ? `
+          <div class="flex items-center gap-3">
+            <div class="px-3 py-1 rounded-lg border ${bColor} flex items-center gap-2">
+              <span class="text-xs font-black">${bType}</span>
+              <span class="text-[10px] text-gray-300 font-mono">ΔEN = <b class="text-white">${delta}</b></span>
+            </div>
+            <button onclick="setPairInBondCalc(${el1.z}, ${el2.z})" class="px-2.5 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-cyan-300 rounded-lg border border-gray-700 font-bold">Ver detalle</button>
+          </div>
+        ` : `<span class="text-xs text-rose-400 font-bold">Sin electronegatividad definida en uno de los átomos</span>`}
+      `;
+      lucide.createIcons();
+    }
+
+    // MODAL DE DETALLES DEL ELEMENTO (ALTO CONTRASTE)
+    function openModalByZ(z) {
+      const el = [...elementsData, ...fBlockElements].find(item => item.z === z);
+      if (el) openModal(el);
+    }
+
+    function openModal(el) {
+      const modal = document.getElementById('elementModal');
+      const content = document.getElementById('modalContent');
+
+      content.innerHTML = `
+        <div class="flex items-center gap-4 mb-6 border-b border-gray-800 pb-5">
+          <div class="w-20 h-20 rounded-2xl bg-cyan-400 text-black flex items-center justify-center font-black text-3xl shadow-xl shadow-cyan-500/30">
+            ${el.s}
+          </div>
+          <div>
+            <div class="flex items-center gap-3">
+              <h2 class="text-2xl font-black text-white">${el.n}</h2>
+              <span class="text-xs mono bg-gray-800 text-cyan-300 px-2.5 py-1 rounded-md font-extrabold border border-gray-700">Z = ${el.z}</span>
+            </div>
+            <p class="text-xs text-gray-300 font-semibold capitalize mt-1">Familia: ${el.c ? el.c.replace('_', ' ') : 'Tierras Raras'}</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3.5 text-xs mb-6">
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">Electronegatividad</span>
+            <span class="text-lg font-black text-amber-300 mono">${el.en ?? 'No definida'}</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">Radio Atómico</span>
+            <span class="text-lg font-black text-emerald-400 mono">${el.ar ? el.ar + ' pm' : '—'}</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">Radio Iónico</span>
+            <span class="text-lg font-black text-cyan-300 mono">${el.ir ? el.ir + ' pm' : '—'}</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">1ª Energía de Ionización</span>
+            <span class="text-lg font-black text-indigo-300 mono">${el.ie ? el.ie + ' kJ/mol' : '—'}</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">Afinidad Electrónica</span>
+            <span class="text-lg font-black text-rose-400 mono">${el.ea ? el.ea + ' kJ/mol' : '—'}</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-gray-950 border border-gray-800 shadow-inner">
+            <span class="text-gray-400 block mb-1 font-semibold">Carácter Metálico</span>
+            <span class="text-lg font-black text-yellow-300 mono">${el.mc ?? '—'} / 10</span>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2.5">
+          <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-xs font-bold transition border border-gray-700">
+            Cerrar Ficha
+          </button>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('elementModal').classList.add('hidden');
+    }
+
+    // CALCULADORA DE ENLACES QUÍMICOS (ΔEN)
+    function openBondModal() {
+      document.getElementById('bondModal').classList.remove('hidden');
+    }
+    function closeBondModal() {
+      document.getElementById('bondModal').classList.add('hidden');
+    }
+
+    function populateBondSelects() {
+      const sel1 = document.getElementById('atomSelect1');
+      const sel2 = document.getElementById('atomSelect2');
+      const allEls = [...elementsData, ...fBlockElements].filter(e => !e.isGroupPlaceholder && e.en !== null);
+
+      allEls.sort((a,b) => a.z - b.z);
+
+      allEls.forEach(e => {
+        const opt1 = new Option(`${e.s} - ${e.n} (EN: ${e.en})`, e.z);
+        const opt2 = new Option(`${e.s} - ${e.n} (EN: ${e.en})`, e.z);
+        sel1.add(opt1);
+        sel2.add(opt2);
+      });
+
+      sel1.value = 11;
+      sel2.value = 17;
+    }
+
+    function setPairInBondCalc(z1, z2) {
+      document.getElementById('atomSelect1').value = z1;
+      document.getElementById('atomSelect2').value = z2;
+      openBondModal();
+      calcBond();
+    }
+
+    function calcBond() {
+      const z1 = parseInt(document.getElementById('atomSelect1').value);
+      const z2 = parseInt(document.getElementById('atomSelect2').value);
+      const allEls = [...elementsData, ...fBlockElements];
+      const el1 = allEls.find(e => e.z === z1);
+      const el2 = allEls.find(e => e.z === z2);
+
+      const resCard = document.getElementById('bondResultCard');
+
+      if (!el1 || !el2 || el1.en === null || el2.en === null) {
+        resCard.innerHTML = `<p class="text-xs text-rose-400 font-bold">Uno de los elementos no posee valor de electronegatividad definido (ej. gas noble).</p>`;
+        return;
+      }
+
+      const deltaEN = Math.abs(el1.en - el2.en).toFixed(2);
+      let bondType = "";
+      let colorClass = "";
+      let explanation = "";
+
+      if (deltaEN <= 0.4) {
+        bondType = "Covalente No Polar (Apolar)";
+        colorClass = "text-emerald-300 border-emerald-500 bg-emerald-950/60";
+        explanation = "Los electrones del enlace se comparten de manera simétrica y equitativa. No se forma un dipolo eléctrico permanente.";
+      } else if (deltaEN <= 1.7) {
+        bondType = "Covalente Polar";
+        colorClass = "text-cyan-300 border-cyan-500 bg-cyan-950/60";
+        explanation = `El átomo más electronegativo (${el1.en > el2.en ? el1.n : el2.n}) atrae con mayor densidad el par electrónico, generando polos parciales (δ- y δ+).`;
+      } else {
+        bondType = "Enlace Iónico";
+        colorClass = "text-amber-300 border-amber-500 bg-amber-950/60";
+        explanation = `La diferencia supera 1.7. Ocurre una transferencia completa de electrones: formación neta de un catión metálico y un anión no metálico.`;
+      }
+
+      const ionicPercentage = (16 * deltaEN + 3.5 * Math.pow(deltaEN, 2)).toFixed(1);
+
+      resCard.innerHTML = `
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+          <div>
+            <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Resultado del Cálculo</div>
+            <div class="text-xl font-black ${colorClass.split(' ')[0]} mt-0.5">${bondType}</div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-gray-400 font-mono">Diferencia |${el1.en} - ${el2.en}|</span>
+            <div class="text-2xl font-black text-white mono">ΔEN = ${deltaEN}</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl border ${colorClass} mt-1">
+          <p class="text-xs leading-relaxed">${explanation}</p>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 text-xs text-gray-300">
+          <span>Carácter Iónico Estimado (Hannay-Smith):</span>
+          <span class="font-black text-white mono bg-gray-900 px-2 py-0.5 rounded border border-gray-700">${ionicPercentage}%</span>
+        </div>
+      `;
+    }
+
+    // BOTÓN COMPACTO DE SCROLL VERTICAL (ALTERNANCIA INTELIGENTE ARRIBA/ABAJO)
+    let isScrolledBottom = false;
+    function toggleQuickVerticalScroll() {
+      const container = document.getElementById('tableContainer');
+      const icon = document.getElementById('scrollBtnIcon');
+      const text = document.getElementById('scrollBtnText');
+      if (!container) return;
+
+      if (!isScrolledBottom) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        isScrolledBottom = true;
+        if (text) text.textContent = "Subir";
+        if (icon) icon.setAttribute('data-lucide', 'arrow-up');
+      } else {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+        isScrolledBottom = false;
+        if (text) text.textContent = "Bajar";
+        if (icon) icon.setAttribute('data-lucide', 'arrow-down');
+      }
+      lucide.createIcons();
+    }
+
+    // Detector de scroll del contenedor para actualizar el botón automáticamente
+    document.getElementById('tableContainer')?.addEventListener('scroll', () => {
+      const container = document.getElementById('tableContainer');
+      const icon = document.getElementById('scrollBtnIcon');
+      const text = document.getElementById('scrollBtnText');
+      if (!container || !icon || !text) return;
+
+      const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 25;
+      if (isNearBottom && !isScrolledBottom) {
+        isScrolledBottom = true;
+        text.textContent = "Subir";
+        icon.setAttribute('data-lucide', 'arrow-up');
+        lucide.createIcons();
+      } else if (!isNearBottom && isScrolledBottom && container.scrollTop < 25) {
+        isScrolledBottom = false;
+        text.textContent = "Bajar";
+        icon.setAttribute('data-lucide', 'arrow-down');
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
